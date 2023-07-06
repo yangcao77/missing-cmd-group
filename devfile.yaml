@@ -1,60 +1,77 @@
-schemaVersion: 2.2.0
+schemaVersion: 2.1.0
 metadata:
-  name: java-springboot
-  version: 1.2.1
-  displayName: Spring Boot®
-  description: Spring Boot® using Maven
-  icon: https://raw.githubusercontent.com/devfile-samples/devfile-stack-icons/main/spring.svg
-  tags:
-    - Java
-    - Spring
-  projectType: springboot
-  language: Java
-  provider: Red Hat
-  supportUrl: https://github.com/devfile-samples/devfile-support#support-information
-parent:
-  id: java-springboot
-  registryUrl: 'https://registry.devfile.io'
+  name: chapeaux-project
+  displayName: Chapeaux Web Components
+  language: 'javascript'
 components:
-  - name: image-build
-    image:
-      imageName: java-springboot-image:latest
-      dockerfile:
-        uri: docker/Dockerfile
-        buildContext: .
-        rootRequired: false
-  - name: kubernetes-deploy
-    attributes:
-      deployment/replicas: 1
-      deployment/cpuLimit: '100m'
-      deployment/cpuRequest: 10m
-      deployment/memoryLimit: 300Mi
-      deployment/memoryRequest: 180Mi
-      deployment/container-port: 8082
-    kubernetes:
-      uri: deploy.yaml
+  - name: deno-www
+    container:
+      image: quay.io/chapeaux/deno-che:latest
+      env:
+        - name: DENO_DIR
+          value: .deno
+      memoryLimit: 1G
+      mountSources: true
+      volumeMounts:
+        - name: deno-cache
+          path: .deno
       endpoints:
-        - name: http-8082
-          targetPort: 8082
-          path: /
-  - name: kubernetes-deploy2
-    attributes:
-      deployment/replicas: 1
-      deployment/cpuLimit: '100m'
-      deployment/cpuRequest: 10m
-      deployment/memoryLimit: 300Mi
-      deployment/memoryRequest: 180Mi
-      deployment/container-port: 8081
-    kubernetes:
-      uri: deploy.yaml
-      endpoints:
-        - name: http-8081
-          targetPort: 8081
-          path: /
+        - name: deno-svc
+          protocol: https
+          exposure: public
+          targetPort: 8080
+  - name: deno-cache
+    volume:
+      size: 1G
 commands:
-  - id: build-image
-    apply:
-      component: image-build
-  - id: deployk8s
-    apply:
-      component: kubernetes-deploy
+  - exec:
+      label: "RUN the web server"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task serve"
+      group:
+        kind: run
+        isDefault: true
+    id: serve-app
+  - exec:
+      label: "TEST the components"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task test"
+      group:
+        kind: test
+    id: test-cpx
+  - exec:
+      label: "TEST the components and WATCH for changes"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task test:watch"
+      hotReloadCapable: true
+      group:
+        kind: test
+    id: test-watch
+  - exec:
+      label: "BUILD changed component scripts"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task build"
+      group:
+        kind: build
+    id: build-scripts
+  - exec:
+      label: "BUILD component scripts and WATCH for changes"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task build:watch"
+      hotReloadCapable: true
+      group:
+        kind: build
+    id: build-watch
+  - exec:
+      label: "FORMAT component scripts"
+      component: deno-www
+      workingDir: ${PROJECTS_ROOT}/cpx-components
+      commandLine: "deno task format"
+      group:
+        kind: build
+    id: fmt-cpx
